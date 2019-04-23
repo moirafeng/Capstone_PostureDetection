@@ -17,19 +17,19 @@ subprocess.call("kill -9 `pidof bluetoothctl`",shell=True)
 
 # Start a new "bluetooth-agent" process where XXXX is the passkey
 status = subprocess.call("bluetoothctl " + passkey + " &",shell=True)
-
+print("hi")
 # Now, connect in the same way as always with PyBlueZ
 try:
     s = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
+    b = 6
+    print("hi2")
     s.connect((addr1,port))
-    print("connected")
+    a = 5
 except bluetooth.btcommon.BluetoothError as err:
     # Error handler
     print("error when pairing")
     pass
     
-    
-while 1
-	
+
 
 
