@@ -159,16 +159,9 @@ def main():
         IMU1 = MotionTracker(bd_addr=addr2,port=1)
         print("connected to IMU1")
         IMU1.start_read_data()
-        #IMU1.stop_read_data()
-        #print("ang_x:", IMU1.ang_x, "ang_y:", IMU1.ang_y, "ang_z:", IMU1.ang_z)
-        #IMU2 = MotionTracker(bd_addr=addr1,port=2)
-        #print("connected to IMU2")
-        #IMU2.start_read_data()
-        #print("IMU2 ang_x:", IMU2.ang_x, "ang_y:", IMU2.ang_y, "ang_z:", IMU2.ang_z)
-        #IMU1.start_read_data()
-        #print("ang_x:", IMU1.ang_x, "ang_y:", IMU1.ang_y, "ang_z:", IMU1.ang_z)
 
         while True:
+			
             print("IMU1 ang_x:", IMU1.ang_x, "ang_y:", IMU1.ang_y, "ang_z:", IMU1.ang_z)
             #print("IMU2 ang_x:", IMU2.ang_x, "ang_y:", IMU2.ang_y, "ang_z:", IMU2.ang_z)
 

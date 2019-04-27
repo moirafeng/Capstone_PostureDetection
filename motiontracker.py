@@ -123,84 +123,88 @@ class MotionTracker(object):
 			data_block = self.sock.recv(1)
 			if data_block == b'\x55':
 				data_block_type = self.sock.recv(1)
-				self.t = round(time.time() - start, 2)
-				if t[-1] != self.t:
-					# if enough time has lapsed
-					t.append(self.t)
-					# Acceleration
-					if data_block_type == b'\x51':
-						# Read 9 byte block
-						ax_l = self.sock.recv(1)
-						ax_h = self.sock.recv(1)
-						ay_l = self.sock.recv(1)
-						ay_h = self.sock.recv(1)
-						az_l = self.sock.recv(1)
-						az_h = self.sock.recv(1)
-						t_l = self.sock.recv(1)
-						t_h = self.sock.recv(1)
-						self.sock.recv(1) # Check sum, ignore
+				self.t = round(time.time() - start, 3)
+				#~ if t[-1] != self.t:
+				#~ if enough time has lapsed
+				t.append(self.t)
+				# Acceleration
+				if data_block_type == b'\x51':
+					# Read 9 byte block
+					ax_l = self.sock.recv(1)
+					ax_h = self.sock.recv(1)
+					ay_l = self.sock.recv(1)
+					ay_h = self.sock.recv(1)
+					az_l = self.sock.recv(1)
+					az_h = self.sock.recv(1)
+					t_l = self.sock.recv(1)
+					t_h = self.sock.recv(1)
+					self.sock.recv(1) # Check sum, ignore
 
-						self.acc_x = round((struct.unpack("<h", ax_l + ax_h)[0] / 32768.0 * 16.0), 3)
-						self.acc_y = round((struct.unpack("<h", ay_l + ay_h)[0] / 32768.0 * 16.0), 3)
-						self.acc_z = round((struct.unpack("<h", az_l + az_h)[0] / 32768.0 * 16.0), 3)
-						self.temperature = struct.unpack("<h", t_l + t_h)[0] / 340.0 + 36.25
-						
-						acc_x.append(self.acc_x)
-						acc_y.append(self.acc_y)
-						acc_z.append(self.acc_z)
-						#print(acc_x)
-					# Angular velocity
-					elif data_block_type == b'\x52':
-						# Read 9 byte block
-						wx_l = self.sock.recv(1)
-						wx_h = self.sock.recv(1)
-						wy_l = self.sock.recv(1)
-						wy_h = self.sock.recv(1)
-						wz_l = self.sock.recv(1)
-						wz_h = self.sock.recv(1)
-						t_l = self.sock.recv(1)
-						t_h = self.sock.recv(1)
-						self.sock.recv(1)  # Check sum, ignore
+					self.acc_x = round((struct.unpack("<h", ax_l + ax_h)[0] / 32768.0 * 16.0), 3)
+					self.acc_y = round((struct.unpack("<h", ay_l + ay_h)[0] / 32768.0 * 16.0), 3)
+					self.acc_z = round((struct.unpack("<h", az_l + az_h)[0] / 32768.0 * 16.0), 3)
+					self.temperature = struct.unpack("<h", t_l + t_h)[0] / 340.0 + 36.25
+					
+					acc_x.append(self.acc_x)
+					acc_y.append(self.acc_y)
+					acc_z.append(self.acc_z)
+					#print(acc_x)
+				# Angular velocity
+				elif data_block_type == b'\x52':
+					# Read 9 byte block
+					wx_l = self.sock.recv(1)
+					wx_h = self.sock.recv(1)
+					wy_l = self.sock.recv(1)
+					wy_h = self.sock.recv(1)
+					wz_l = self.sock.recv(1)
+					wz_h = self.sock.recv(1)
+					t_l = self.sock.recv(1)
+					t_h = self.sock.recv(1)
+					self.sock.recv(1)  # Check sum, ignore
 
-						self.angv_x = round((struct.unpack("<h", wx_l + wx_h)[0] / 32768.0 * 2000.0), 2)
-						self.angv_y = round((struct.unpack("<h", wy_l + wy_h)[0] / 32768.0 * 2000.0), 2)
-						self.angv_z = round((struct.unpack("<h", wz_l + wz_h)[0] / 32768.0 * 2000.0), 2)
-						self.temperature = struct.unpack("<h", t_l + t_h)[0] / 340.0 + 36.25
-						
-						w_x.append(self.angv_x)
-						w_y.append(self.angv_y)
-						w_z.append(self.angv_z)
-					# Angle
-					elif data_block_type == b'\x53':
-						# Read 9 byte block
-						roll_l = self.sock.recv(1)
-						roll_h = self.sock.recv(1)
-						pitch_l = self.sock.recv(1)
-						pitch_h = self.sock.recv(1)
-						yaw_l = self.sock.recv(1)
-						yaw_h = self.sock.recv(1)
-						t_l = self.sock.recv(1)
-						t_h = self.sock.recv(1)
-						self.sock.recv(1)  # Check sum, ignore
+					self.angv_x = round((struct.unpack("<h", wx_l + wx_h)[0] / 32768.0 * 2000.0), 2)
+					self.angv_y = round((struct.unpack("<h", wy_l + wy_h)[0] / 32768.0 * 2000.0), 2)
+					self.angv_z = round((struct.unpack("<h", wz_l + wz_h)[0] / 32768.0 * 2000.0), 2)
+					self.temperature = struct.unpack("<h", t_l + t_h)[0] / 340.0 + 36.25
+					
+					w_x.append(self.angv_x)
+					w_y.append(self.angv_y)
+					w_z.append(self.angv_z)
+				# Angle
+				elif data_block_type == b'\x53':
+					# Read 9 byte block
+					roll_l = self.sock.recv(1)
+					roll_h = self.sock.recv(1)
+					pitch_l = self.sock.recv(1)
+					pitch_h = self.sock.recv(1)
+					yaw_l = self.sock.recv(1)
+					yaw_h = self.sock.recv(1)
+					t_l = self.sock.recv(1)
+					t_h = self.sock.recv(1)
+					self.sock.recv(1)  # Check sum, ignore
 
-						self.ang_x = round((struct.unpack("<h", roll_l + roll_h)[0] / 32768.0 * 180.0), 2)
-						self.ang_y = round((struct.unpack("<h", pitch_l + pitch_h)[0] / 32768.0 * 180.0), 2)
-						self.ang_z = round((struct.unpack("<h", yaw_l + yaw_h)[0] / 32768.0 * 180.0), 2)
-						self.temperature = struct.unpack("<h", t_l + t_h)[0] / 340.0 + 36.25
-						
-						ang_x.append(self.ang_x)
-						ang_y.append(self.ang_y)
-						ang_z.append(self.ang_z)
-				else :
-					pass
+					self.ang_x = round((struct.unpack("<h", roll_l + roll_h)[0] / 32768.0 * 180.0), 2)
+					self.ang_y = round((struct.unpack("<h", pitch_l + pitch_h)[0] / 32768.0 * 180.0), 2)
+					self.ang_z = round((struct.unpack("<h", yaw_l + yaw_h)[0] / 32768.0 * 180.0), 2)
+					self.temperature = struct.unpack("<h", t_l + t_h)[0] / 340.0 + 36.25
+					
+					ang_x.append(self.ang_x)
+					ang_y.append(self.ang_y)
+					ang_z.append(self.ang_z)
+				#~ else :
+					#~ pass
 	
 	def savedata(self):
 		""" Save & export data to csv file.
 		"""
 		# Data to be saved
-		data_mat = [t, acc_x, acc_y, acc_z, w_x, w_y, w_z, ang_x, ang_y,\
-					ang_z]
-		export = zip_longest(*data_mat, fillvalue = '')
+		t = np.asarray(t)
+		acc_x = np.asarray(acc_x)
+		acc_y = np.asarray(acc_y)
+		acc_z = np.asarray(acc_z)
+		#~ data_mat = [t, acc_x, acc_y, acc_z, w_x, w_y, w_z, ang_x, ang_y,\
+					#~ ang_z]
+		#~ export = zip_longest(*data_mat, fillvalue = '')
 		filename = 'data0.csv'
 		# Increment index in file name if name taken
 		while(os.path.isfile(filename)):
@@ -239,9 +243,10 @@ def main():
 		IMU1.start_read_data()
 
 		while True:
-			#time.sleep(0.5) # printing period
-			print("time:", IMU1.t, " ang_x:", IMU1.ang_x, " ang_y:", \
-			IMU1.ang_y, " ang_z:", IMU1.ang_z)
+			#time.sleep(1) # printing period
+			#~ print("time:", IMU1.t, " ang_x:", IMU1.ang_x, " ang_y:", \
+			#~ IMU1.ang_y, " ang_z:", IMU1.ang_z)
+			print("time:", t[-1], "acc: ", acc_x[-1])
 			
 
 	except KeyboardInterrupt:
