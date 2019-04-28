@@ -192,19 +192,39 @@ class MotionTracker(object):
 
 	def detectpos(self):
 		# this function will run every delta seconds
+		#~ self.pos = 0
+		#~ return pos
 		pass
 
-	def update_state(self):	
-		self.detectpos()
-		feedback()
-		print("time:", self.t, " ang_x:", self.ang_x, " ang_y:", \
-		self.ang_y, " ang_z:", self.ang_z)
+	#~ def update_state(self):	
+		#~ self.detectpos()
+		#~ feedback()
+		#~ print("time:", self.t, " ang_x:", self.ang_x, " ang_y:", \
+		#~ self.ang_y, " ang_z:", self.ang_z)
 		#~ next_call = next_call + self.delta
-		self.timer_thread = threading.Timer(self.delta, self.update_state)
-		self.timer_thread.daemen = True
-		self.timer_thread.start()
-		
-	
+		#~ try:
+			#~ self.timer_thread = threading.Timer(self.delta, self.update_state)
+			#~ self.timer_thread.daemen = True
+			#~ self.timer_thread.start()
+		#~ except KeyboardInterrupt:
+			#~ self.timer_thread.cancel()
+			#~ print("cancel...")
+
+	def update_state(self):	
+		next_call = time.time()
+		while True:
+			try:
+				self.detectpos()
+				feedback()
+				print("time:", self.t, " ang_x:", self.ang_x, " ang_y:", \
+				self.ang_y, " ang_z:", self.ang_z)
+				next_call = next_call + self.delta
+				time.sleep(next_call - time.time())
+			except KeyboardInterrupt:
+				self.stop_read_data()
+				savedata()
+				break
+						
 		
 def feedback():		
 	pass	
@@ -241,9 +261,6 @@ def main():
 	addr1 = '20:18:08:08:09:01' # addr of IMU1
 	addr2 = '20:18:08:08:11:42' # addr of IMU2
 	passkey = "1234"
-	
-	global next_call
-	next_call = 0
 
 
 	# kill any "bluetooth-agent" process that is already running
@@ -255,19 +272,20 @@ def main():
 	try:
 		IMU1 = MotionTracker(bd_addr=addr1, port=1, delta=2)
 		IMU1.start_read_data()
-		
-
 		IMU1.update_state()
+		
+		#~ IMU1.timer_thread = threading.Thread(target=IMU1.update_state)
+		#~ IMU1.timer_thread.daemen = True
+		#~ IMU1.timer_thread.start()
 
 		#~ while True:
+			#~ now = time.time()
 			#~ print("time:", IMU1.t, " ang_x:", IMU1.ang_x, " ang_y:", \
-			#~ IMU1.ang_y, " ang_z:", IMU1.ang_z)
-		
+			#~ IMU1.ang_y, " ang_z:", IMU1.ang_z)		
 
 	except KeyboardInterrupt:
-		IMU1.stop_read_data()
-		IMU1.timer_thread.cancel()
-		savedata()
+		pass
+
 			
 if __name__ == "__main__":
 	main()
