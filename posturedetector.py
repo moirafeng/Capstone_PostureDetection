@@ -240,8 +240,7 @@ def main():
 		while True:
 			#time.sleep(1) # printing period
 			print("time:", IMU1.t, " ang_x:", IMU1.ang_x, " ang_y:", \
-			IMU1.ang_y, " ang_z:", IMU1.ang_z)
-			
+			IMU1.ang_y, " ang_z:", IMU1.ang_z)		
 
 	except KeyboardInterrupt:
 		IMU1.stop_read_data()
