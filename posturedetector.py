@@ -19,6 +19,7 @@ import csv
 from itertools import zip_longest
 import time
 import numpy as np
+from gpiozero import LED
 # import pandas as pd
 
 class MotionTracker(object):
@@ -119,14 +120,9 @@ class MotionTracker(object):
 		
 		start = time.time()
 		while self.__thread_read_device_data.is_running:
-			#sleep(20)
 			data_block = self.sock.recv(1)
 			if data_block == b'\x55':
 				data_block_type = self.sock.recv(1)
-				self.t = round(time.time() - start, 3)
-				#~ if t[-1] != self.t:
-				#~ if enough time has lapsed
-				t.append(self.t)
 				# Acceleration
 				if data_block_type == b'\x51':
 					# Read 9 byte block
@@ -144,6 +140,9 @@ class MotionTracker(object):
 					self.acc_y = round((struct.unpack("<h", ay_l + ay_h)[0] / 32768.0 * 16.0), 3)
 					self.acc_z = round((struct.unpack("<h", az_l + az_h)[0] / 32768.0 * 16.0), 3)
 					self.temperature = struct.unpack("<h", t_l + t_h)[0] / 340.0 + 36.25
+					
+					self.t = round(time.time() - start, 3)
+					t.append(self.t)
 					
 					acc_x.append(self.acc_x)
 					acc_y.append(self.acc_y)
@@ -198,29 +197,25 @@ class MotionTracker(object):
 		""" Save & export data to csv file.
 		"""
 		# Data to be saved
-		t = np.asarray(t)
-		acc_x = np.asarray(acc_x)
-		acc_y = np.asarray(acc_y)
-		acc_z = np.asarray(acc_z)
-		#~ data_mat = [t, acc_x, acc_y, acc_z, w_x, w_y, w_z, ang_x, ang_y,\
-					#~ ang_z]
-		#~ export = zip_longest(*data_mat, fillvalue = '')
+		data = [t, acc_x, acc_y, acc_z, w_x, w_y, w_z, ang_x, ang_y,\
+					ang_z]
+		export = zip_longest(*data, fillvalue = '')
 		filename = 'data0.csv'
 		# Increment index in file name if name taken
 		while(os.path.isfile(filename)):
 			dotInd = filename.index('.')
 			filename = filename.replace(filename[4:dotInd], str(int(filename[4:dotInd])+1))
-		try:
-			with open(filename,'w') as mycsv:
-				wr = csv.writer(mycsv, quoting = csv.QUOTE_ALL)
-				wr.writerow(("time","acc_x","acc_y","acc_z","w_x","w_y",\
-				"w_z","ang_x","ang_y","ang_z"))
-				wr.writerows(export)
-				mycsv.flush()
-				print("Done saving data to " + filename)
-		except:
-			print("Error when writing file...")
-			pass
+		#~ try:
+		with open(filename,'w+') as mycsv:
+			wr = csv.writer(mycsv, quoting = csv.QUOTE_ALL)
+			wr.writerow(("time","acc_x","acc_y","acc_z","w_x","w_y",\
+			"w_z","ang_x","ang_y","ang_z"))
+			wr.writerows(export)
+			mycsv.flush() 
+			print("Done saving data to " + filename)
+		#~ except:
+			#~ print("Error when writing file...")
+			#~ pass
 			   
 
 def main():
@@ -239,14 +234,13 @@ def main():
 	status = subprocess.call("bluetoothctl " + passkey + " &", shell=True)
 	
 	try:
-		IMU1 = MotionTracker(bd_addr=addr2,port=1)
+		IMU1 = MotionTracker(bd_addr=addr1,port=1)
 		IMU1.start_read_data()
 
 		while True:
 			#time.sleep(1) # printing period
-			#~ print("time:", IMU1.t, " ang_x:", IMU1.ang_x, " ang_y:", \
-			#~ IMU1.ang_y, " ang_z:", IMU1.ang_z)
-			print("time:", t[-1], "acc: ", acc_x[-1])
+			print("time:", IMU1.t, " ang_x:", IMU1.ang_x, " ang_y:", \
+			IMU1.ang_y, " ang_z:", IMU1.ang_z)
 			
 
 	except KeyboardInterrupt:
