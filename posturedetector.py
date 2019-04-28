@@ -9,25 +9,24 @@ Class to read from a Bluetooth MPU6050 device.
 Obtain acceleration, angular velocity, angle and temperature
 """
 
-import threading
+import time, threading
 import struct
-import bluetooth
-import subprocess
+import bluetooth, subprocess
 
-import os
-import csv
+import os, csv
 from itertools import zip_longest
-import time
 import numpy as np
 from gpiozero import LED
 # import pandas as pd
+
+
 
 class MotionTracker(object):
 	"""Class to track movement from MPU6050 Bluetooth device.
 	"""
 
 	
-	def __init__(self, bd_addr, port):
+	def __init__(self, bd_addr, port, delta):
 		"""Initialization for tracker object.
 
 		Args:
@@ -53,6 +52,7 @@ class MotionTracker(object):
 		"""
 		self.bd_addr = bd_addr
 		self.port = port
+		self.delta = delta
 		
 		self.sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
 		self.sock.connect((self.bd_addr, self.port))
@@ -70,9 +70,9 @@ class MotionTracker(object):
 		self.ang_y = 0.0
 		self.ang_z = 0.0
 
-		self.temperature = 0.0
 		self.t = 0.0
 		self.__thread_read_device_data = None
+		self.timer_thread = None
 
 	def start_read_data(self):
 		"""Start reading from device. Wait for a second or two before
@@ -139,7 +139,6 @@ class MotionTracker(object):
 					self.acc_x = round((struct.unpack("<h", ax_l + ax_h)[0] / 32768.0 * 16.0), 3)
 					self.acc_y = round((struct.unpack("<h", ay_l + ay_h)[0] / 32768.0 * 16.0), 3)
 					self.acc_z = round((struct.unpack("<h", az_l + az_h)[0] / 32768.0 * 16.0), 3)
-					self.temperature = struct.unpack("<h", t_l + t_h)[0] / 340.0 + 36.25
 					
 					self.t = round(time.time() - start, 3)
 					t.append(self.t)
@@ -147,7 +146,7 @@ class MotionTracker(object):
 					acc_x.append(self.acc_x)
 					acc_y.append(self.acc_y)
 					acc_z.append(self.acc_z)
-					#print(acc_x)
+
 				# Angular velocity
 				elif data_block_type == b'\x52':
 					# Read 9 byte block
@@ -164,7 +163,6 @@ class MotionTracker(object):
 					self.angv_x = round((struct.unpack("<h", wx_l + wx_h)[0] / 32768.0 * 2000.0), 2)
 					self.angv_y = round((struct.unpack("<h", wy_l + wy_h)[0] / 32768.0 * 2000.0), 2)
 					self.angv_z = round((struct.unpack("<h", wz_l + wz_h)[0] / 32768.0 * 2000.0), 2)
-					self.temperature = struct.unpack("<h", t_l + t_h)[0] / 340.0 + 36.25
 					
 					w_x.append(self.angv_x)
 					w_y.append(self.angv_y)
@@ -185,27 +183,45 @@ class MotionTracker(object):
 					self.ang_x = round((struct.unpack("<h", roll_l + roll_h)[0] / 32768.0 * 180.0), 2)
 					self.ang_y = round((struct.unpack("<h", pitch_l + pitch_h)[0] / 32768.0 * 180.0), 2)
 					self.ang_z = round((struct.unpack("<h", yaw_l + yaw_h)[0] / 32768.0 * 180.0), 2)
-					self.temperature = struct.unpack("<h", t_l + t_h)[0] / 340.0 + 36.25
 					
 					ang_x.append(self.ang_x)
 					ang_y.append(self.ang_y)
 					ang_z.append(self.ang_z)
 				#~ else :
 					#~ pass
+
+	def detectpos(self):
+		# this function will run every delta seconds
+		pass
+
+	def update_state(self):	
+		self.detectpos()
+		feedback()
+		print("time:", self.t, " ang_x:", self.ang_x, " ang_y:", \
+		self.ang_y, " ang_z:", self.ang_z)
+		#~ next_call = next_call + self.delta
+		self.timer_thread = threading.Timer(self.delta, self.update_state)
+		self.timer_thread.daemen = True
+		self.timer_thread.start()
+		
 	
-	def savedata(self):
-		""" Save & export data to csv file.
-		"""
-		# Data to be saved
-		data = [t, acc_x, acc_y, acc_z, w_x, w_y, w_z, ang_x, ang_y,\
-					ang_z]
-		export = zip_longest(*data, fillvalue = '')
-		filename = 'data0.csv'
-		# Increment index in file name if name taken
-		while(os.path.isfile(filename)):
-			dotInd = filename.index('.')
-			filename = filename.replace(filename[4:dotInd], str(int(filename[4:dotInd])+1))
-		#~ try:
+		
+def feedback():		
+	pass	
+
+def savedata():
+	""" Save & export data to csv file.
+	"""
+	# Data to be saved
+	data = [t, acc_x, acc_y, acc_z, w_x, w_y, w_z, ang_x, ang_y,\
+				ang_z]
+	export = zip_longest(*data, fillvalue = '')
+	filename = 'data0.csv'
+	# Increment index in file name if name taken
+	while(os.path.isfile(filename)):
+		dotInd = filename.index('.')
+		filename = filename.replace(filename[4:dotInd], str(int(filename[4:dotInd])+1))
+	try:
 		with open(filename,'w+') as mycsv:
 			wr = csv.writer(mycsv, quoting = csv.QUOTE_ALL)
 			wr.writerow(("time","acc_x","acc_y","acc_z","w_x","w_y",\
@@ -213,10 +229,9 @@ class MotionTracker(object):
 			wr.writerows(export)
 			mycsv.flush() 
 			print("Done saving data to " + filename)
-		#~ except:
-			#~ print("Error when writing file...")
-			#~ pass
-			   
+	except:
+		print("Error when writing file...")
+		pass			   
 
 def main():
 	"""Test driver stub.
@@ -226,6 +241,10 @@ def main():
 	addr1 = '20:18:08:08:09:01' # addr of IMU1
 	addr2 = '20:18:08:08:11:42' # addr of IMU2
 	passkey = "1234"
+	
+	global next_call
+	next_call = 0
+
 
 	# kill any "bluetooth-agent" process that is already running
 	subprocess.call("kill -9 `pidof bluetoothctl`", shell=True)
@@ -234,17 +253,21 @@ def main():
 	status = subprocess.call("bluetoothctl " + passkey + " &", shell=True)
 	
 	try:
-		IMU1 = MotionTracker(bd_addr=addr1,port=1)
+		IMU1 = MotionTracker(bd_addr=addr1, port=1, delta=2)
 		IMU1.start_read_data()
+		
 
-		while True:
-			#time.sleep(1) # printing period
-			print("time:", IMU1.t, " ang_x:", IMU1.ang_x, " ang_y:", \
-			IMU1.ang_y, " ang_z:", IMU1.ang_z)		
+		IMU1.update_state()
+
+		#~ while True:
+			#~ print("time:", IMU1.t, " ang_x:", IMU1.ang_x, " ang_y:", \
+			#~ IMU1.ang_y, " ang_z:", IMU1.ang_z)
+		
 
 	except KeyboardInterrupt:
 		IMU1.stop_read_data()
-		IMU1.savedata()
+		IMU1.timer_thread.cancel()
+		savedata()
 			
 if __name__ == "__main__":
 	main()
