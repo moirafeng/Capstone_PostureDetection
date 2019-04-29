@@ -65,7 +65,7 @@ class MotionTracker(object):
 		
 		self.sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
 		self.sock.connect((self.bd_addr, self.port))
-		print("IMU connected")
+		print("<<IMU connected!>>")
 		
 		self.acc_x = 0.0
 		self.acc_y = 0.0
@@ -198,22 +198,21 @@ class MotionTracker(object):
 					self.sock.recv(1)  # Check sum, ignore
 
 					self.ang_x = round((struct.unpack("<h", roll_l + roll_h)[0] / 32768.0 * 180.0), 2)
-					self.ang_y = round((struct.unpack("<h", pitch_l + pitch_h)[0] / 32768.0 * 180.0), 2)
+					self.ang_y = -round((struct.unpack("<h", pitch_l + pitch_h)[0] / 32768.0 * 180.0), 2)
 					self.ang_z = round((struct.unpack("<h", yaw_l + yaw_h)[0] / 32768.0 * 180.0), 2)
 					
 					ang_x.append(self.ang_x)
 					ang_y.append(self.ang_y)
 					ang_z.append(self.ang_z)
-				#~ else :
-					#~ pass
 					
 	def calibration(self):
 		off_ind = 3 # index of data point for calibration
 		global ang_xos
 		global ang_yos
 		global ang_zos
+		print("<<Start calibration>>")
 		while True:
-			print("Start calibration...")
+			print("Calibration...")
 			time.sleep(self.delta)
 			if len(t) <= 4:
 				pass
@@ -221,7 +220,7 @@ class MotionTracker(object):
 				ang_xos = ang_x[off_ind]
 				ang_yos = ang_y[off_ind]
 				ang_zos = ang_z[off_ind]
-				print("End calibration")
+				print("<<End calibration>>")
 				break
 				
 
@@ -229,10 +228,10 @@ class MotionTracker(object):
 		# this function will run every delta seconds
 		# weights & parameters in linear model learned from SVM
 		ss_wt = [-0.032, 0.054, 0.004]
-		sw_wt = [0.142, 0.195, -0.027]
+		sw_wt = [-0.062, 0.195, -0.027]
 		w_ths = 10
-		ss_ths = -2.14 # stand-sit threshold
-		sw_ths = 18.77 # sway-back threshold
+		ss_ths = 1.717 # stand-sit threshold
+		sw_ths = 1.195 # sway-back threshold
 		
 		ang_xn = self.ang_x - ang_xos
 		ang_yn = self.ang_y - ang_yos
@@ -300,7 +299,6 @@ class MotionTracker(object):
 		t_prs = 0
 		m_prs = 0	
 		
-		#~ next_call = time.time()
 		while True:
 			try:
 				# Detect keyboard input

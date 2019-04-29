@@ -56,7 +56,7 @@ class MotionTracker(object):
 		
 		self.sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
 		self.sock.connect((self.bd_addr, self.port))
-		print("IMU connected")
+		print("<<IMU connected!>>")
 		
 		self.acc_x = 0.0
 		self.acc_y = 0.0
