@@ -9,23 +9,31 @@ Class to read from a Bluetooth MPU6050 device.
 Obtain acceleration, angular velocity, angle and temperature
 """
 
+import sys
 import time, threading
 import struct
 import bluetooth, subprocess
+import keyboard
 
 import os, csv
 from itertools import zip_longest
 import numpy as np
+import math
 from gpiozero import LED
 # import pandas as pd
 
+global green
+global blue
+global red
 
+green = LED(17)
+blue = LED(27)
+red = LED(22)
 
 class MotionTracker(object):
 	"""Class to track movement from MPU6050 Bluetooth device.
 	"""
 
-	
 	def __init__(self, bd_addr, port, delta):
 		"""Initialization for tracker object.
 
@@ -50,6 +58,7 @@ class MotionTracker(object):
 			__thread_read_device_data (threading.Thread) : Read input thread
 			
 		"""
+		
 		self.bd_addr = bd_addr
 		self.port = port
 		self.delta = delta
@@ -71,8 +80,36 @@ class MotionTracker(object):
 		self.ang_z = 0.0
 
 		self.t = 0.0
+		self.pos = 4
 		self.__thread_read_device_data = None
 		self.timer_thread = None
+		
+		global t # time
+		global l # posture label
+		global acc_x
+		global acc_y
+		global acc_z
+		global w_x
+		global w_y
+		global w_z
+		global ang_x
+		global ang_y
+		global ang_z
+
+
+		t = [0]
+		l = [4]
+		acc_x = [0]
+		acc_y = [0]
+		acc_z = [0]
+		w_x = [0]
+		w_y = [0]
+		w_z = [0]
+		ang_x = [0]
+		ang_y = [0]
+		ang_z = [0]
+		
+
 
 	def start_read_data(self):
 		"""Start reading from device. Wait for a second or two before
@@ -96,27 +133,6 @@ class MotionTracker(object):
 	def __read_device_data(self):
 		"""Private method to read device data in 9 byte blocks.
 		"""
-		global t
-		global acc_x
-		global acc_y
-		global acc_z
-		global w_x
-		global w_y
-		global w_z
-		global ang_x
-		global ang_y
-		global ang_z
-		
-		t = [0]
-		acc_x = [0]
-		acc_y = [0]
-		acc_z = [0]
-		w_x = [0]
-		w_y = [0]
-		w_z = [0]
-		ang_x = [0]
-		ang_y = [0]
-		ang_z = [0]
 		
 		start = time.time()
 		while self.__thread_read_device_data.is_running:
@@ -142,6 +158,7 @@ class MotionTracker(object):
 					
 					self.t = round(time.time() - start, 3)
 					t.append(self.t)
+					l.append(self.pos)
 					
 					acc_x.append(self.acc_x)
 					acc_y.append(self.acc_y)
@@ -189,67 +206,137 @@ class MotionTracker(object):
 					ang_z.append(self.ang_z)
 				#~ else :
 					#~ pass
+					
+	def calibration(self):
+		off_ind = 3 # index of data point for calibration
+		global ang_xos
+		global ang_yos
+		global ang_zos
+		while True:
+			print("Start calibration...")
+			time.sleep(self.delta)
+			if len(t) <= 4:
+				pass
+			else:
+				ang_xos = ang_x[off_ind]
+				ang_yos = ang_y[off_ind]
+				ang_zos = ang_z[off_ind]
+				print("End calibration")
+				break
+				
 
 	def detectpos(self):
 		# this function will run every delta seconds
-		#~ self.pos = 0
-		#~ return pos
-		pass
-
-	#~ def update_state(self):	
-		#~ self.detectpos()
-		#~ feedback()
-		#~ print("time:", self.t, " ang_x:", self.ang_x, " ang_y:", \
-		#~ self.ang_y, " ang_z:", self.ang_z)
-		#~ next_call = next_call + self.delta
-		#~ try:
-			#~ self.timer_thread = threading.Timer(self.delta, self.update_state)
-			#~ self.timer_thread.daemen = True
-			#~ self.timer_thread.start()
-		#~ except KeyboardInterrupt:
-			#~ self.timer_thread.cancel()
-			#~ print("cancel...")
+		# weights & parameters in linear model learned from SVM
+		ss_wt = [-0.032, 0.054, 0.004]
+		sw_wt = [0.142, 0.195, -0.027]
+		w_ths = 10
+		ss_ths = -2.14 # stand-sit threshold
+		sw_ths = 18.77 # sway-back threshold
+		
+		ang_xn = self.ang_x - ang_xos
+		ang_yn = self.ang_y - ang_yos
+		ang_zn = self.ang_z - ang_zos
+		
+		w_mag = math.sqrt(self.angv_x*self.angv_x + self.angv_y*self.angv_y \
+		+ self.angv_z*self.angv_z)
+			
+		if w_mag < w_ths: # if still
+			ss_y = ss_wt[0]*ang_xn + ss_wt[1]*ang_yn + ss_wt[2]*ang_zn
+			if ss_y < ss_ths: # if stand/sway-back
+				sw_y = sw_wt[0]*ang_xn + sw_wt[1]*ang_yn + sw_wt[2]*ang_zn
+				if sw_y > sw_ths: # if sway-back
+					self.pos = 1 
+				else:
+					self.pos = 0
+			else:
+				self.pos = 2
+		else:
+			self.pos = 3
+				
 
 	def update_state(self):	
 		next_call = time.time()
 		while True:
 			try:
 				self.detectpos()
-				feedback()
+				self.feedback()
 				print("time:", self.t, " ang_x:", self.ang_x, " ang_y:", \
-				self.ang_y, " ang_z:", self.ang_z)
+				self.ang_y, " ang_z:", self.ang_z, " label:", self.pos)
 				next_call = next_call + self.delta
 				time.sleep(next_call - time.time())
 			except KeyboardInterrupt:
 				self.stop_read_data()
 				savedata()
-				break
-				
-
-	#~ def update_state(self):	
-		#~ self.detectpos()
-		#~ feedback()
-		#~ print("time:", self.t, " ang_x:", self.ang_x, " ang_y:", \
-		#~ self.ang_y, " ang_z:", self.ang_z)
-		#~ next_call = next_call + self.delta
-		#~ try:
-			#~ self.timer_thread = threading.Timer(self.delta, self.update_state)
-			#~ self.timer_thread.daemen = True
-			#~ self.timer_thread.start()
-		#~ except KeyboardInterrupt:
-			#~ self.timer_thread.cancel()
-			#~ print("cancel...")
-						
+				break				
 		
-def feedback():		
-	pass	
+	def feedback(self):	
+		if self.pos	== 0: # good standing posture: blue
+			blue.on()
+			green.off()
+			red.off()
+		elif self.pos == 1: # sway-back: red
+			red.on()
+			blue.off()
+			green.off()
+		elif self.pos == 2: # sit: green
+			blue.off()
+			green.on()
+			red.off()
+		elif self.pos == 3: # moving: no led on
+			blue.off()
+			green.off()
+			red.off()
+
+		
+	def label_data(self):
+		# initialize labeling
+		global g_prs
+		global s_prs
+		global t_prs
+		global m_prs
+		g_prs = 0
+		s_prs = 0
+		t_prs = 0
+		m_prs = 0	
+		
+		#~ next_call = time.time()
+		while True:
+			try:
+				# Detect keyboard input
+				g_prs = keyboard.is_pressed('0')
+				s_prs = keyboard.is_pressed('1')
+				t_prs = keyboard.is_pressed('2')
+				m_prs = keyboard.is_pressed('3')
+				if self.pos == 4: # when not in any labeled state
+					if g_prs:
+						self.pos = 0
+						print("Good standing posture")	
+					elif s_prs:
+						self.pos = 1
+						print("Sway-back posture!")
+					elif t_prs:
+						self.pos = 2
+						print("Sitting")
+					elif m_prs:
+						self.pos = 3
+						print("Not still")
+				elif 1 in [g_prs, s_prs, t_prs, m_prs]: # when in labeled state
+					self.pos = 4
+					print("Posture ends")
+				time.sleep(0.2)					
+				
+			except KeyboardInterrupt:
+				self.stop_read_data()
+				savedata()
+				break		
 
 def savedata():
 	""" Save & export data to csv file.
 	"""
 	# Data to be saved
 	data = [t, acc_x, acc_y, acc_z, w_x, w_y, w_z, ang_x, ang_y,\
-				ang_z]
+				ang_z, l]
 	export = zip_longest(*data, fillvalue = '')
 	filename = 'data0.csv'
 	# Increment index in file name if name taken
@@ -260,12 +347,12 @@ def savedata():
 		with open(filename,'w+') as mycsv:
 			wr = csv.writer(mycsv, quoting = csv.QUOTE_ALL)
 			wr.writerow(("time","acc_x","acc_y","acc_z","w_x","w_y",\
-			"w_z","ang_x","ang_y","ang_z"))
+			"w_z","ang_x","ang_y","ang_z","label"))
 			wr.writerows(export)
 			mycsv.flush() 
 			print("Done saving data to " + filename)
 	except:
-		print("Error when writing file...")
+		print("Error when writing file!")
 		pass			   
 
 def main():
@@ -287,16 +374,9 @@ def main():
 	try:
 		IMU1 = MotionTracker(bd_addr=addr1, port=1, delta=2)
 		IMU1.start_read_data()
-		IMU1.update_state()
-		
-		#~ IMU1.timer_thread = threading.Thread(target=IMU1.update_state)
-		#~ IMU1.timer_thread.daemen = True
-		#~ IMU1.timer_thread.start()
-
-		#~ while True:
-			#~ now = time.time()
-			#~ print("time:", IMU1.t, " ang_x:", IMU1.ang_x, " ang_y:", \
-			#~ IMU1.ang_y, " ang_z:", IMU1.ang_z)		
+		#IMU1.label_data()
+		IMU1.calibration()
+		IMU1.update_state()		
 
 	except KeyboardInterrupt:
 		pass
